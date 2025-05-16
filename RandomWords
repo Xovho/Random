@@ -173,23 +173,13 @@
 -- nexus ogre palette quantum relic
 -- sanctuary timber utopia valley wisp
 -- yardarm zeppelin arcane briar citadel
--- dahlia ember frost glade haven
--- inkling juniper kaleidoscope lily mist
--- nocturne opal psalm quay rune
--- shimmer thyme umber verdant warp
--- xenith yew zodiac arcadia baffler
--- capsule dirge entangle flux gossamer
--- hiatus infuse jolt keystone lullaby
--- marquee nuance offset panorama quell
--- ripple salient drift ember ferry
--- glacier hollow ignite jubilant kinetic
--- labyrinth motif nectar oblivion prism
--- quasar ripple summit tundra umbra
--- vortex wander xenial yonder zephyr
+
 --// Services
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local VirtualUser = game:GetService("VirtualUser")
+local RunService = game:GetService("RunService")
+
 local Player = Players.LocalPlayer
 local Character = Player.Character or Player.CharacterAdded:Wait()
 local Backpack = Player:WaitForChild("Backpack")
@@ -205,18 +195,15 @@ ScreenGui.Name = "GrowPlusGUI"
 ScreenGui.IgnoreGuiInset = true
 ScreenGui.ResetOnSpawn = false
 
---// Main Frame
 local MainFrame = Instance.new("Frame", ScreenGui)
-MainFrame.Size = UDim2.new(0, 200, 0, 170)
-MainFrame.Position = UDim2.new(0.5, -100, 0.5, -85)
+MainFrame.Size = UDim2.new(0, 200, 0, 190)
+MainFrame.Position = UDim2.new(0.5, -100, 0.5, -95)
 MainFrame.BackgroundColor3 = Color3.fromRGB(101, 67, 33)
 MainFrame.Visible = false
 MainFrame.BorderSizePixel = 0
 
--- Banner
 local Banner = Instance.new("Frame", MainFrame)
 Banner.Size = UDim2.new(1, 0, 0, 20)
-Banner.Position = UDim2.new(0, 0, 0, 0)
 Banner.BackgroundColor3 = Color3.fromRGB(0, 128, 0)
 
 local Title = Instance.new("TextLabel", Banner)
@@ -229,7 +216,7 @@ Title.TextStrokeColor3 = Color3.new(0, 0, 0)
 Title.TextStrokeTransparency = 0
 Title.TextScaled = true
 
--- Inventory Value Text
+-- Inventory Value Label
 local ValueLabel = Instance.new("TextLabel", MainFrame)
 ValueLabel.Size = UDim2.new(1, -10, 0, 18)
 ValueLabel.Position = UDim2.new(0, 5, 1, -20)
@@ -278,16 +265,14 @@ local function calculateInventory()
 	return total
 end
 
--- Inventory Value Loop
 task.spawn(function()
 	while true do
-		local total = calculateInventory()
-		ValueLabel.Text = "₵ " .. shorten(total)
-		wait(1)
+		ValueLabel.Text = "₵ " .. shorten(calculateInventory())
+		task.wait(1)
 	end
 end)
 
--- Toggle Button Creator
+-- Create Toggle Function
 local function createToggle(name, posY)
 	local frame = Instance.new("Frame", MainFrame)
 	frame.Size = UDim2.new(0, 180, 0, 20)
@@ -324,13 +309,13 @@ local function createToggle(name, posY)
 	return toggleBG, circle, button
 end
 
--- Create Toggles
+-- Toggles
 local harvestBG, harvestCircle, harvestBtn = createToggle("Auto Harvest", 25)
 local eggBG, eggCircle, eggBtn = createToggle("Auto Buy Egg", 50)
 local sprinklerBG, sprinklerCircle, sprinklerBtn = createToggle("Auto Buy Sprinkler", 75)
-local antikickBG, antikickCircle, antikickBtn = createToggle("Anti Kick", 100)
+local seedBG, seedCircle, seedBtn = createToggle("Auto Buy Seeds", 100)
+local antikickBG, antikickCircle, antikickBtn = createToggle("Anti Kick", 125)
 
--- Toggle Animation
 local function updateToggle(state, bg, circle)
 	bg.BackgroundColor3 = state and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(150, 150, 150)
 	circle:TweenPosition(state and UDim2.new(0, 21, 0, 1) or UDim2.new(0, 1, 0, 1), "Out", "Quad", 0.2, true)
@@ -346,6 +331,19 @@ for _, farm in ipairs(workspace:WaitForChild("Farm"):GetChildren()) do
 end
 local PlantsPhysical = MyFarm and MyFarm.Important:WaitForChild("Plants_Physical")
 
+-- Fly + NoClip Setup
+local flying = false
+RunService.Stepped:Connect(function()
+	if flying and Character then
+		Character:FindFirstChildOfClass("Humanoid"):ChangeState(11) -- No physics
+		for _, part in pairs(Character:GetDescendants()) do
+			if part:IsA("BasePart") and part.CanCollide then
+				part.CanCollide = false
+			end
+		end
+	end
+end)
+
 -- Auto Harvest
 local autoHarvest = false
 harvestBtn.MouseButton1Click:Connect(function()
@@ -353,6 +351,7 @@ harvestBtn.MouseButton1Click:Connect(function()
 	updateToggle(autoHarvest, harvestBG, harvestCircle)
 	if autoHarvest then
 		task.spawn(function()
+			flying = true
 			while autoHarvest do
 				for _, plant in ipairs(PlantsPhysical:GetChildren()) do
 					if not autoHarvest then break end
@@ -366,6 +365,7 @@ harvestBtn.MouseButton1Click:Connect(function()
 				end
 				task.wait(0.3)
 			end
+			flying = false
 		end)
 	end
 end)
@@ -405,6 +405,26 @@ sprinklerBtn.MouseButton1Click:Connect(function()
 					GameEvents.BuyGearStock:FireServer(name)
 				end
 				task.wait(20)
+			end
+		end)
+	end
+end)
+
+-- Auto Buy Seeds
+local autoSeed = false
+seedBtn.MouseButton1Click:Connect(function()
+	autoSeed = not autoSeed
+	updateToggle(autoSeed, seedBG, seedCircle)
+	if autoSeed then
+		local seeds = {
+			"Cacao", "Pepper", "Grape", "Mango", "Dragon Fruit", "Cactus"
+		}
+		task.spawn(function()
+			while autoSeed do
+				for _, name in ipairs(seeds) do
+					GameEvents.BuySeedStock:FireServer(name)
+					task.wait(1)
+				end
 			end
 		end)
 	end
